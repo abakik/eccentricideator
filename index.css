@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light theme (paper) */
+:root {
+  --ground: #f7f4fa;
+  --panel: #ffffff;
+  --raised: #eee9f4;
+  --line: #ddd5e8;
+  --line-strong: #8e84a3;
+  --ink: #1b1624;
+  --muted: #5e5570;
+  --accent: #d4f23a;
+  --on-accent: #15121c;
+  --accent-text: #5a2fc2;
+  --danger: #b3261e;
+  color-scheme: light;
+}
+
+/* Dark theme (the cabinet) */
+.dark {
+  --ground: #15121c;
+  --panel: #1f1a2a;
+  --raised: #2b2439;
+  --line: #3a3349;
+  --line-strong: #6b6180;
+  --ink: #f1ecf7;
+  --muted: #b3a9c4;
+  --accent: #d4f23a;
+  --on-accent: #15121c;
+  --accent-text: #d4f23a;
+  --danger: #ff9a8a;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-text: var(--accent-text);
+  --color-danger: var(--danger);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+}
+
+@layer base {
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+  }
+}
+
+/* Small uppercase label used above sections */
+@utility eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Quiet text button used for idea and panel actions */
+@utility text-action {
+  min-height: 44px;
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-underline-offset: 4px;
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+  &:disabled {
+    opacity: 0.5;
+  }
+}

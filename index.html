@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eccentric Ideator</title>
+  <meta name="description" content="Pair a design problem with a deliberately eccentric persona to break a workshop team out of predictable ideas.">
+  <meta property="og:title" content="Eccentric Ideator">
+  <meta property="og:description" content="Pair a design problem with a deliberately eccentric persona to break a workshop team out of predictable ideas.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    // Set the theme before first paint. The cabinet (dark) is the default look.
+    if (localStorage.theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
