@@ -48,7 +48,7 @@ export const PERSONA_FIELDS: Array<{ key: keyof Persona; label: string; guidance
   {
     key: "informationProcessingLearningStyle",
     label: "How they take in information",
-    guidance: "What they pay attention to and what they count as evidence.",
+    guidance: "What they pay attention to and which sense, signal, or kind of experience they trust most.",
   },
   {
     key: "primaryModeOfReasoningHeuristics",
@@ -107,10 +107,10 @@ export const personaSchema = z.object(
 
 /** Used when the team gives no hint; there is no temperature control, so variety comes from the seed. */
 const PERSONA_SEEDS = [
-  "a lighthouse keeper",
-  "a bell founder",
+  // Trades that know things through the body, the senses, timing or other people.
+  // Keeper-and-recorder trades (archivists, compilers, night guards) are left out on
+  // purpose: they pull every persona towards ledgers and logbooks.
   "a competitive pigeon racer",
-  "a museum night guard",
   "a perfumer who lost their sense of smell",
   "a restorer of mechanical clocks",
   "a deep-sea cable repairer",
@@ -118,9 +118,7 @@ const PERSONA_SEEDS = [
   "a mushroom forager",
   "a subtitler of silent films",
   "a railway signal operator",
-  "a keeper of a seed bank",
   "a professional queue-stander",
-  "a tide-table compiler",
   "a puppet maker",
   "a cemetery gardener",
   "a glassblower",
@@ -132,11 +130,36 @@ const PERSONA_SEEDS = [
   "a foley artist",
   "a shepherd who works by whistle",
   "a mapmaker of caves",
-  "a sourdough archivist",
   "a ferry pilot on a short crossing",
-  "a collector of lost gloves",
   "a tuner of church organs",
   "a snow-plough driver",
+  "a wrestling referee",
+  "a stage prompter",
+  "a dry-stone waller",
+  "a rollercoaster test rider",
+  "a small-town wedding DJ",
+  "an ice-cream van driver",
+  "a circus tightrope rigger",
+  "a night-market noodle cook",
+  "a sign-language interpreter at rock concerts",
+  "a kite fighter",
+  "a white-water rafting guide",
+  "a park-bench chess hustler",
+  "a quick-change costume dresser",
+  "a truffle-dog trainer",
+  "a one-man-band busker",
+  "a tea taster",
+  "a demolition foreman",
+  "a storm chaser",
+  "a competitive sandcastle builder",
+  "a hot-air balloon pilot",
+  "a fish auctioneer who sells by shout",
+  "a bonsai pruner",
+  "a knife sharpener who travels by bicycle",
+  "a swimming-pool lifeguard",
+  "a street magician",
+  "a hairdresser on a cruise ship",
+  "a goalkeeping coach",
 ];
 
 const TEMPERAMENTS = [
@@ -158,6 +181,17 @@ const TEMPERAMENTS = [
   "stubborn",
 ];
 
+const LIFE_STAGES = [
+  "early twenties",
+  "around thirty",
+  "late thirties",
+  "mid-forties",
+  "fifties",
+  "sixties",
+  "late seventies",
+  "nearly ninety",
+];
+
 const NAME_INITIALS = [..."ABCDEFGHIJKLMNPRSTVWYZ"];
 
 function pick<T>(items: T[]): T {
@@ -172,6 +206,7 @@ What makes a persona useful:
 - A distinctive way of reasoning that can be applied to any problem: concrete heuristics, a particular idea of what counts as evidence, things they notice that others walk past.
 - Distance from the problem, with one bridge back. The persona's life, trade, and origin story belong to a world unrelated to the problem's domain, and none of those fields mention the problem. Only the field about how they see the problem connects the two, by reinterpreting this exact problem through their worldview. Apart from that one field, a reader of the sheet should not be able to guess what the problem is. A persona who already works in, lives beside, or studies the problem's field can only offer the ideas that field already has.
 - Internal consistency. Quirks follow from beliefs, and beliefs from the origin story.
+- A way of knowing that is not record-keeping. Left alone, every persona drifts into someone who writes things down (ledgers, logbooks, registers, notebooks, tallies), and then every idea becomes "keep a shared record of it". Give this persona another way of knowing and remembering: touch, sound, smell, timing, muscle memory, weather, bargaining, performance, reading a crowd, the feel of a material. Leave written records out of their habitat, quirks, and sources of inspiration unless the hint asks for them.
 - Freshness. Stock figures (wizards, mad professors, time travellers, aliens, sentient machines) and decorative words such as "quantum" and "cosmic" make every persona feel the same, so avoid them unless the hint asks for them. Prefer an unexpected trade, craft, place, or obsession, rendered in concrete detail.
 
 Eccentricity level sets how far the persona departs from an ordinary person:
@@ -184,7 +219,7 @@ At every level the reasoning stays rigorous enough to produce ideas a designer c
 
 The hint, when given, describes who the persona is (a vocation, a domain, a flavour). It is not the topic of the problem. When the team gives no hint, a seed trade is supplied instead: build the persona's world from that trade.
 
-Every request also carries a temperament and the first letter of the persona's name. They exist so that personas differ from one session to the next, so follow them: let the temperament colour the persona's voice, quirks, and archetype, and choose a name that fits their place and trade.
+Every request also carries a temperament, an age, and the first letter of the persona's name. They exist so that personas differ from one session to the next, so follow them: let the temperament colour the persona's voice, quirks, and archetype, and choose a name that fits their place and trade.
 
 Invent the character. Do not use real people, and do not build the eccentricity out of mental illness, disability, ethnicity, nationality, or religion.
 
@@ -199,6 +234,7 @@ export function personaPrompt(problem: string, domainHint: string, eccentricityL
       tag("design_problem", problem),
       hint ? tag("hint", hint) : tag("seed_trade", pick(PERSONA_SEEDS)),
       tag("temperament", pick(TEMPERAMENTS)),
+      tag("age", pick(LIFE_STAGES)),
       tag("name_starts_with", pick(NAME_INITIALS)),
       `Eccentricity level: ${eccentricityLevel} of 5.`,
       "Create the persona.",
@@ -248,6 +284,7 @@ How to work:
 - Be bold. The team has a separate step for turning an idea into something practical, so do not tame an idea in advance. Bring the objects, rituals, tools, and rules of your world across literally. Aim for the idea that makes the team say they would never have thought of it.
 - Every idea must still bear on the team's problem. The route is strange and the destination is real: a reader should be able to picture the idea and see which part of the problem it goes after.
 - Make the ideas differ in kind. Use different mechanisms, different scales, or different parts of the problem, so the set is not variations on one thought.
+- Go past the first device everyone reaches for. A shared ledger, logbook, noticeboard, tracker, or tally is where most personas land, whatever their trade. At most one of your ideas may work by writing down, logging, or displaying a record; the others must act on the problem some other way.
 - Hold each idea to your own criteria for a good idea, and stay away from your forbidden approaches.
 - When the team lists ideas they already have, go somewhere those ideas did not.
 - Give exactly the number of ideas the team asks for, as separate entries. This holds even if someone like you would rather offer a single answer or a long list.
