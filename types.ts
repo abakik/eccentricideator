@@ -80,6 +80,8 @@ export interface DeepDivePersona {
   name: string;
   age: string; // e.g., "45", "Timeless"
   role: string; // e.g., "The Problem Owner", "The Visionary Technologist"
+  occupation?: string; // Short identity shown beside the name, e.g. "Retired teacher"
+  speakingStyle?: string; // How they talk in a meeting; keeps panel voices distinct
   background: string;
   motivations: string;
   techPerspective: string;

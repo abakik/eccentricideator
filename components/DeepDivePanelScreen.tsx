@@ -59,6 +59,12 @@ const initials = (name: string) =>
     .join('')
     .toUpperCase();
 
+/** Who a panellist is at a glance: "Retired teacher". Older saved panels only have the long role text. */
+const occupationOf = (persona: DeepDivePersona) =>
+  persona.occupation?.trim() || persona.role.split(':').slice(1).join(':').trim() || persona.role;
+
+const seatTitleOf = (persona: DeepDivePersona) => persona.role.split(':')[0].replace(/^The\s+/i, '').trim();
+
 const Seat: React.FC<{ personaId: string; name: string }> = ({ personaId, name }) => (
   <span
     aria-hidden="true"
@@ -68,6 +74,18 @@ const Seat: React.FC<{ personaId: string; name: string }> = ({ personaId, name }
     {initials(name)}
   </span>
 );
+
+/** A takeaway is stored as "heading\ndetail"; points saved before headings existed are plain sentences. */
+const PointText: React.FC<{ point: string }> = ({ point }) => {
+  const breakAt = point.indexOf('\n');
+  if (breakAt === -1) return <span>{point}</span>;
+  return (
+    <span>
+      <span className="block font-bold text-ink">{point.slice(0, breakAt)}</span>
+      <span className="mt-1 block text-muted">{point.slice(breakAt + 1)}</span>
+    </span>
+  );
+};
 
 const DeepDivePanelScreen: React.FC<DeepDivePanelScreenProps> = ({
   selectedIdea,
@@ -250,8 +268,8 @@ const DeepDivePanelScreen: React.FC<DeepDivePanelScreenProps> = ({
                 >
                   <Seat personaId={persona.id} name={persona.name} />
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-ink">{persona.name}</span>
-                    <span className="block text-xs leading-snug text-muted">{persona.role.split(':').slice(1).join(':').trim() || persona.role}</span>
+                    <span className="block text-[15px] font-semibold leading-tight text-ink">{occupationOf(persona)}</span>
+                    <span className="mt-0.5 block text-[13px] leading-snug text-muted">{persona.name} · {seatTitleOf(persona)}</span>
                   </span>
                 </button>
               );
@@ -261,7 +279,8 @@ const DeepDivePanelScreen: React.FC<DeepDivePanelScreenProps> = ({
           {activePersona ? (
             <div className="mt-5 border-t border-line pt-5 text-sm leading-relaxed text-muted">
               <p className="font-display text-base italic leading-snug text-ink">“{activePersona.quote}”</p>
-              <p className="mt-3"><span className="font-semibold text-ink">{activePersona.role.split(':')[0]}</span>, {activePersona.age}</p>
+              <p className="mt-3 text-ink"><span className="font-semibold">{activePersona.name}</span>, {activePersona.age}</p>
+              <p>{activePersona.role.split(':').slice(1).join(':').trim() || activePersona.role}</p>
               <p className="mt-2">{activePersona.background}</p>
               <p className="mt-2"><span className="font-semibold text-ink">Wants: </span>{activePersona.motivations}</p>
               <p className="mt-2"><span className="font-semibold text-ink">Watching for: </span>{activePersona.concerns}</p>
@@ -292,15 +311,21 @@ const DeepDivePanelScreen: React.FC<DeepDivePanelScreenProps> = ({
                 <span className="h-px flex-1 bg-line" />
               </div>
               <div className="flex flex-col gap-5">
-                {round.responses.map((response, index) => (
+                {round.responses.map((response, index) => {
+                  const speaker = personas.find((persona) => persona.id === response.personaId);
+                  return (
                   <div key={index} className="flex gap-3.5">
                     <Seat personaId={response.personaId} name={response.personaName} />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink">{response.personaName}</p>
+                      <p className="text-sm text-muted">
+                        <span className="font-semibold text-ink">{response.personaName}</span>
+                        {speaker && <span> · {occupationOf(speaker)}</span>}
+                      </p>
                       <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{response.responseText}</p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -363,7 +388,7 @@ const DeepDivePanelScreen: React.FC<DeepDivePanelScreenProps> = ({
                         disabled={isRevising}
                         className="mt-0.5 h-[18px] w-[18px] flex-none accent-[var(--accent-text)]"
                       />
-                      <span>{point}</span>
+                      <PointText point={point} />
                     </label>
                   );
                 })}

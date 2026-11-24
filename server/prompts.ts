@@ -314,7 +314,9 @@ export const panelSchema = z.object({
       id: z.enum(PANEL_ROLE_IDS),
       name: z.string().describe("A realistic full name."),
       age: z.string().describe("Age in years, as digits."),
+      occupation: z.string().describe("Who they are in two to four words, as you would introduce them: 'Retired teacher', 'Service designer', 'Night-shift bus driver'."),
       role: z.string().describe("The role title, a colon, then their specific job, such as 'The Problem Owner: Night-shift bus driver'."),
+      speakingStyle: z.string().describe("One sentence on how they talk in a meeting: sentence length, bluntness, habits such as anecdotes, numbers, questions or dry humour. Different for every panellist."),
       background: z.string().describe("Two sentences on their relevant history."),
       motivations: z.string().describe("One sentence on what they want out of this."),
       techPerspective: z.string().describe("One sentence on how they regard new technology."),
@@ -334,6 +336,8 @@ The five seats, one person each:
 - critical-designer — The Critical Designer: a designer who presses on usability, ethics, and who gets left out.
 - visionary-technologist — The Visionary Technologist: a builder who sees what new technology could make possible.
 - skeptical-investor — The Skeptical Investor: whoever controls the money in this setting (an investor, a budget holder, a funder) and asks about cost, risk, and return.
+
+Make the five sound like five different people. Vary their ages, backgrounds and temperaments, and give each a way of speaking that the others do not share.
 
 A panel that agrees is useless to the team. Give each person a stance that puts them in tension with at least one other panellist, and make their concerns specific to this idea rather than general to their role.`;
 
@@ -358,13 +362,67 @@ function transcript(rounds: DiscussionRound[], speakerId: string): string {
     .join("\n\n");
 }
 
+/** What one panellist is asked to do in one round. Handing out different turns keeps replies from sharing a shape. */
+export interface SpeakingTurn {
+  move: string;
+  length: string;
+}
+
+const OPENING_MOVES = [
+  "Start from one specific moment you have lived or witnessed, and let your point come out of it.",
+  "Ask the one question whose answer would settle this for you, and say what hangs on it.",
+  "Propose one concrete change and say what it would fix.",
+  "Walk through what would actually happen on an ordinary day if this existed: who does what, and where it goes wrong or right.",
+  "Say plainly what you would refuse to sign off on.",
+  "Point out who or what is missing from the picture.",
+  "Say what is good here that you would fight to protect, and why.",
+];
+
+const LATER_MOVES = [
+  "Take on one panellist directly: say where they are wrong and what follows if you are right.",
+  "Concede a point someone made, then take it somewhere they did not.",
+  "Offer a way through a disagreement between two of the others.",
+  "Bring up something nobody has mentioned yet.",
+  "Put a hard question to one panellist by name.",
+  "Give a concrete example or number that tests a claim someone made.",
+  "Say how your view has shifted since you last spoke, and what shifted it.",
+];
+
+const LENGTHS = [
+  "one sentence, at most 30 words",
+  "two sentences, at most 50 words",
+  "two sentences, at most 50 words",
+  "three sentences, at most 70 words",
+  "three or four sentences, at most 90 words",
+];
+
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/** A different move and length for each panellist in a round. */
+export function speakingTurns(panelSize: number, isOpeningRound: boolean): SpeakingTurn[] {
+  const moves = shuffled(isOpeningRound ? OPENING_MOVES : LATER_MOVES);
+  const lengths = shuffled(LENGTHS);
+  return Array.from({ length: panelSize }, (_, i) => ({
+    move: moves[i % moves.length],
+    length: lengths[i % lengths.length],
+  }));
+}
+
 export function discussionPrompt(
   speaker: DeepDivePersona,
   panel: DeepDivePersona[],
   idea: Idea,
   problem: string,
   focusMode: DeepDiveFocusMode,
-  previousRounds: DiscussionRound[]
+  previousRounds: DiscussionRound[],
+  turn: SpeakingTurn
 ): Prompt {
   const others = panel
     .filter((member) => member.id !== speaker.id)
@@ -387,7 +445,10 @@ ${tag(
     `View of technology: ${speaker.techPerspective}`,
     `What you look for: ${speaker.concerns}`,
     `Your outlook: ${speaker.quote}`,
-  ].join("\n")
+    speaker.speakingStyle ? `How you talk: ${speaker.speakingStyle}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n")
 )}
 
 The other panellists:
@@ -395,13 +456,16 @@ ${others}
 
 ${focus}
 
-Speak as yourself, in the first person, the way you would in a meeting:
-- Take a clear position. Say what you actually think, from your own experience, and name the specific thing that worries or excites you.
-- Add something new every time you speak. Do not repeat a point that you or anyone else has already made.
-- After the first round, answer at least one panellist by name. Disagree where you disagree, and say so if someone has changed your mind.
-- Skip pleasantries, compliments that only set up a caveat, and restating the idea. The team has little time.
+Speak as yourself, in the first person, the way you actually talk in a meeting. All five panellists are speaking at once and cannot hear each other until the round is over, so the panel only sounds like five people if you sound like yourself. A reply that could have come from anyone on the panel is a wasted turn.
 
-Reply with two or three sentences of plain speech and nothing else. Your first words are the substance of your point. The team sees your name and role beside everything you say, so your reply never states your own name, role, or job title, and never comments on the discussion's format or on these instructions.`;
+- Say what you really think, from your own experience. Add something new each time; do not repeat a point that you or anyone else has already made.
+- After the first round, answer at least one panellist by name. Disagree where you disagree, and say so if someone has changed your mind.
+- Skip pleasantries and do not restate the idea. Refer to it the way a person would in conversation ("this", "it", "the card") instead of opening with its name.
+- Avoid the reviewer's template of a verdict with a condition, then a reason, then "I'd want…". Let the shape of what you say follow from how you talk.
+
+For this turn: ${turn.move}
+
+Length: ${turn.length}. Treat that as a limit, not a target; people in meetings get cut off. Plain speech and nothing else. The team sees your name and role beside everything you say, so your reply never states your own name, role, or job title, and never comments on the discussion's format or on these instructions.`;
 
   const parts = [
     tag("design_problem", problem),
@@ -425,8 +489,25 @@ Reply with two or three sentences of plain speech and nothing else. Your first w
 // ---------------------------------------------------------------------------
 
 export const summarySchema = z.object({
-  points: z.array(z.string()).describe("Three to seven points, most important first, one sentence each."),
+  points: z
+    .array(
+      z.object({
+        heading: z.string().describe("The point's main idea in two to five words, with no full stop."),
+        detail: z.string().describe("One specific sentence that makes sense without the heading or the transcript."),
+      })
+    )
+    .describe("Three to seven points, most important first."),
 });
+
+/** A point travels through the app as one string: its heading, a line break, then the detail. */
+export function formatPoint(point: { heading: string; detail: string }): string {
+  const heading = point.heading.trim().replace(/[.:]+$/, "");
+  return heading ? `${heading}\n${point.detail.trim()}` : point.detail.trim();
+}
+
+function pointList(points: string[]): string {
+  return points.map((point) => `- ${point.replace(/\n/, ": ")}`).join("\n");
+}
 
 export function summaryPrompt(
   idea: Idea,
@@ -443,7 +524,7 @@ export function summaryPrompt(
 
 ${shape}
 
-Write three to seven points, most important first. Each is one specific sentence that can be understood without the transcript. The team reads the points without the panel in front of them, so describe positions and never name panellists. Where the panel disagreed, keep the disagreement as a single point that states both sides as a choice the team has to make; do not average it away. Leave out anything only one sentence of small talk supports.`;
+Write three to seven points, most important first. Each has a heading of two to five words that names its main idea, so the team can scan the list, and a detail of one specific sentence that can be understood without the transcript. The team reads the points without the panel in front of them, so describe positions and never name panellists. Where the panel disagreed, keep the disagreement as a single point that states both sides as a choice the team has to make; do not average it away. Leave out anything only one sentence of small talk supports.`;
 
   return {
     model: FAST_MODEL,
@@ -494,7 +575,7 @@ export function ideaRevisionPrompt(
       )
     );
   }
-  parts.push(tag("selected_feedback", selectedPoints.map((point) => `- ${point}`).join("\n")), "Revise the idea.");
+  parts.push(tag("selected_feedback", pointList(selectedPoints)), "Revise the idea.");
   return { model: FAST_MODEL, system: IDEA_REVISION_SYSTEM, user: parts.join("\n\n"), effort: "medium" };
 }
 
@@ -514,7 +595,7 @@ export function problemRevisionPrompt(problem: string, selectedPoints: string[])
     system: PROBLEM_REVISION_SYSTEM,
     user: [
       tag("original_problem", problem),
-      tag("selected_insights", selectedPoints.map((point) => `- ${point}`).join("\n")),
+      tag("selected_insights", pointList(selectedPoints)),
       "Rewrite the problem statement.",
     ].join("\n\n"),
     effort: "medium",

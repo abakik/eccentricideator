@@ -21,6 +21,8 @@ import {
   PANEL_ROLE_IDS,
   PERSONA_FIELDS,
   discussionPrompt,
+  formatPoint,
+  speakingTurns,
   ideaRevisionPrompt,
   ideaRevisionSchema,
   ideasPrompt,
@@ -335,10 +337,11 @@ claudeRouter.post("/deep-dive/discussion", async (req: Request, res: Response) =
     const rounds = Array.isArray(previousRounds) ? previousRounds : [];
 
     // Panellists speak at the same time within a round, each having heard every earlier round.
+    const turns = speakingTurns(deepDivePersonas.length, rounds.length === 0);
     const settled = await Promise.allSettled(
-      deepDivePersonas.map((speaker) =>
+      deepDivePersonas.map((speaker, index) =>
         generateText(
-          discussionPrompt(speaker, deepDivePersonas, idea, currentProblemDescription, mode, rounds)
+          discussionPrompt(speaker, deepDivePersonas, idea, currentProblemDescription, mode, rounds, turns[index])
         )
       )
     );
@@ -395,7 +398,7 @@ claudeRouter.post("/deep-dive/summarise", async (req: Request, res: Response) =>
       summaryPrompt(idea, rounds, currentProblemDescription, mode),
       summarySchema
     );
-    res.json({ summaryPoints: points.filter(isNonEmptyString) });
+    res.json({ summaryPoints: points.filter((point) => isNonEmptyString(point.detail)).map(formatPoint) });
   } catch (error) {
     sendError(res, error, "Failed to summarise discussion");
   }
