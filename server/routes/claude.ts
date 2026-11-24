@@ -42,6 +42,9 @@ const PANEL_COLORS = ["bg-red-500", "bg-blue-500", "bg-green-500", "bg-purple-50
 /** The prompt asks for MAX_IDEA_WORDS; this only catches a badly overlong idea. */
 const HARD_IDEA_WORD_LIMIT = MAX_IDEA_WORDS + 20;
 
+/** How many times the model is asked before settling for fewer ideas than requested. */
+const MAX_IDEA_REQUESTS = 3;
+
 type RawIdea = { text: string; rationale: string };
 
 function isNonEmptyString(val: unknown): val is string {
@@ -141,6 +144,13 @@ function extractCompletedObjects(
   return { objects, nextIndex: objStart !== -1 ? objStart : lastConsumedIndex };
 }
 
+/** Removes an opening such as "Rachel here," or "Rachel Donnelly:" that the prompt asks the model not to write. */
+function withoutSelfIntroduction(text: string, name: string): string {
+  const names = [name, ...name.split(/\s+/)].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const stripped = text.replace(new RegExp(`^\\s*(?:${names})(?:\\s+here)?\\s*[:,.\u2014-]\\s*`, "i"), "");
+  return stripped ? stripped.charAt(0).toUpperCase() + stripped.slice(1) : text;
+}
+
 export const claudeRouter = express.Router();
 
 // 1. Generate the eccentric persona
@@ -198,28 +208,40 @@ claudeRouter.post("/ideas", async (req: Request, res: Response) => {
         : 5;
     const existing = Array.isArray(existingIdeas) ? existingIdeas.filter(isNonEmptyString) : [];
 
-    let buffer = "";
-    let cursor = 0;
-    let emitted = 0;
+    const sentTexts: string[] = [];
 
-    await streamStructured(ideasPrompt(problem, persona, count, existing), ideasSchema, (delta) => {
-      if (!streaming) {
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache");
-        res.setHeader("Connection", "keep-alive");
-        res.flushHeaders();
-        streaming = true;
-      }
-      buffer += delta;
-      const { objects, nextIndex } = extractCompletedObjects(buffer, cursor);
-      cursor = nextIndex;
-      for (const raw of objects) {
-        const idea = buildIdea(raw, persona.id, emitted++);
-        res.write(`data: ${JSON.stringify({ type: "idea", idea })}\n\n`);
-      }
-    });
+    // The reply's length is the model's choice, and a persona in character sometimes offers
+    // fewer ideas than asked. Ask again for the shortfall, and never send more than asked.
+    for (let attempt = 0; attempt < MAX_IDEA_REQUESTS && sentTexts.length < count; attempt++) {
+      let buffer = "";
+      let cursor = 0;
+      const remaining = count - sentTexts.length;
 
-    if (emitted === 0) {
+      await streamStructured(
+        ideasPrompt(problem, persona, remaining, [...existing, ...sentTexts]),
+        ideasSchema,
+        (delta) => {
+          if (!streaming) {
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache");
+            res.setHeader("Connection", "keep-alive");
+            res.flushHeaders();
+            streaming = true;
+          }
+          buffer += delta;
+          const { objects, nextIndex } = extractCompletedObjects(buffer, cursor);
+          cursor = nextIndex;
+          for (const raw of objects) {
+            if (sentTexts.length >= count) break;
+            const idea = buildIdea(raw, persona.id, sentTexts.length);
+            sentTexts.push(idea.text);
+            res.write(`data: ${JSON.stringify({ type: "idea", idea })}\n\n`);
+          }
+        }
+      );
+    }
+
+    if (sentTexts.length === 0) {
       throw new HttpError(502, "The model returned no ideas. Please try again.");
     }
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
@@ -335,7 +357,7 @@ claudeRouter.post("/deep-dive/discussion", async (req: Request, res: Response) =
         personaName: speaker.name,
         responseText:
           result.status === "fulfilled"
-            ? result.value
+            ? withoutSelfIntroduction(result.value, speaker.name)
             : `(No response: ${formatClaudeError(result.reason, "request failed").message})`,
         avatarColor: speaker.avatarColor,
       };

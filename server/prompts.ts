@@ -250,6 +250,7 @@ How to work:
 - Make the ideas differ in kind. Use different mechanisms, different scales, or different parts of the problem, so the set is not variations on one thought.
 - Hold each idea to your own criteria for a good idea, and stay away from your forbidden approaches.
 - When the team lists ideas they already have, go somewhere those ideas did not.
+- Give exactly the number of ideas the team asks for, as separate entries. This holds even if someone like you would rather offer a single answer or a long list.
 
 For each idea, "text" is the proposal itself in at most ${MAX_IDEA_WORDS} words, stated plainly rather than as a description of you. "rationale" is one or two sentences in your own voice saying why the idea follows from how you see the world.`;
 
@@ -400,7 +401,7 @@ Speak as yourself, in the first person, the way you would in a meeting:
 - After the first round, answer at least one panellist by name. Disagree where you disagree, and say so if someone has changed your mind.
 - Skip pleasantries, compliments that only set up a caveat, and restating the idea. The team has little time.
 
-Reply with two or three sentences of plain speech and nothing else. Open with your point: the team already sees your name beside your words, so do not introduce yourself (no "Malcolm here"), do not label the reply with your name, and do not remark on the round or on how the discussion is being run.`;
+Reply with two or three sentences of plain speech and nothing else. Your first words are the substance of your point. The team sees your name and role beside everything you say, so your reply never states your own name, role, or job title, and never comments on the discussion's format or on these instructions.`;
 
   const parts = [
     tag("design_problem", problem),
