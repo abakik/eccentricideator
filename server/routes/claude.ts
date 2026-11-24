@@ -149,7 +149,9 @@ function extractCompletedObjects(
 /** Removes an opening such as "Rachel here," or "Rachel Donnelly:" that the prompt asks the model not to write. */
 function withoutSelfIntroduction(text: string, name: string): string {
   const names = [name, ...name.split(/\s+/)].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const stripped = text.replace(new RegExp(`^\\s*(?:${names})(?:\\s+here)?\\s*[:,.\u2014-]\\s*`, "i"), "");
+  const stripped = text
+    .replace(/^\s*speaking as myself\s*[:,.\u2014-]\s*/i, "")
+    .replace(new RegExp(`^\\s*(?:${names})(?:\\s+here)?\\s*[:,.\u2014-]\\s*`, "i"), "");
   return stripped ? stripped.charAt(0).toUpperCase() + stripped.slice(1) : text;
 }
 
@@ -337,7 +339,7 @@ claudeRouter.post("/deep-dive/discussion", async (req: Request, res: Response) =
     const rounds = Array.isArray(previousRounds) ? previousRounds : [];
 
     // Panellists speak at the same time within a round, each having heard every earlier round.
-    const turns = speakingTurns(deepDivePersonas.length, rounds.length === 0);
+    const turns = speakingTurns(deepDivePersonas.length, rounds.length === 0, mode);
     const settled = await Promise.allSettled(
       deepDivePersonas.map((speaker, index) =>
         generateText(

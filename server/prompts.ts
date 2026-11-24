@@ -378,6 +378,17 @@ const OPENING_MOVES = [
   "Say what is good here that you would fight to protect, and why.",
 ];
 
+/** Opening moves when the panel is questioning the problem statement instead of an idea. */
+const PROBLEM_OPENING_MOVES = [
+  "Say whose problem this really is, seen from where you sit, and who the statement leaves out.",
+  "Name one assumption buried in the wording and what follows if it is false.",
+  "Restate the problem in one sentence the way you would have written it, and say what you changed.",
+  "Describe a moment you have lived that shows the real problem is something other than what is written.",
+  "Pick the one word or phrase in the statement you would challenge, and say why.",
+  "Say what solving this exact statement would look like, and whether that would actually help the people involved.",
+  "Point to what the statement treats as fixed that you think is open to change.",
+];
+
 const LATER_MOVES = [
   "Take on one panellist directly: say where they are wrong and what follows if you are right.",
   "Concede a point someone made, then take it somewhere they did not.",
@@ -406,8 +417,13 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 /** A different move and length for each panellist in a round. */
-export function speakingTurns(panelSize: number, isOpeningRound: boolean): SpeakingTurn[] {
-  const moves = shuffled(isOpeningRound ? OPENING_MOVES : LATER_MOVES);
+export function speakingTurns(
+  panelSize: number,
+  isOpeningRound: boolean,
+  focusMode: DeepDiveFocusMode
+): SpeakingTurn[] {
+  const opening = focusMode === "problem" ? PROBLEM_OPENING_MOVES : OPENING_MOVES;
+  const moves = shuffled(isOpeningRound ? opening : LATER_MOVES);
   const lengths = shuffled(LENGTHS);
   return Array.from({ length: panelSize }, (_, i) => ({
     move: moves[i % moves.length],
@@ -431,7 +447,7 @@ export function discussionPrompt(
 
   const focus =
     focusMode === "problem"
-      ? `The panel is examining the problem statement, not the idea. Ask whether it is the right problem: whose problem it really is, what it assumes, what it leaves out, and how it could be reframed. The idea is there only as context for how the problem has been read so far.`
+      ? `The panel has been asked one thing: is this the right problem? You are examining the problem statement itself, as it is worded: whose problem it really is, what it assumes, what it leaves out, and how it could be framed better. Nobody is asking for solutions today. If you catch yourself proposing a fix, a feature, or a product, stop and say what that urge tells you about the problem instead.`
       : `The panel is critiquing the idea. It is unconventional on purpose, so judge whether its core could be made to work and what it would take, rather than dismissing it for being odd.`;
 
   const system = `You are ${speaker.name}, ${speaker.role}, on a panel in a design workshop.
@@ -443,7 +459,8 @@ ${tag(
     `Background: ${speaker.background}`,
     `Motivations: ${speaker.motivations}`,
     `View of technology: ${speaker.techPerspective}`,
-    `What you look for: ${speaker.concerns}`,
+    // Their concerns were written about the idea, so they would pull a problem discussion back to it.
+    focusMode === "problem" ? "" : `What you look for: ${speaker.concerns}`,
     `Your outlook: ${speaker.quote}`,
     speaker.speakingStyle ? `How you talk: ${speaker.speakingStyle}` : "",
   ]
@@ -460,25 +477,31 @@ Speak as yourself, in the first person, the way you actually talk in a meeting. 
 
 - Say what you really think, from your own experience. Add something new each time; do not repeat a point that you or anyone else has already made.
 - After the first round, answer at least one panellist by name. Disagree where you disagree, and say so if someone has changed your mind.
-- Skip pleasantries and do not restate the idea. Refer to it the way a person would in conversation ("this", "it", "the card") instead of opening with its name.
+${
+  focusMode === "problem"
+    ? `- Skip pleasantries and do not read the problem statement back. Quote only the few words you are challenging.
+- Keep to the problem. Do not evaluate or mention any particular solution.`
+    : `- Skip pleasantries and do not restate the idea. Refer to it the way a person would in conversation ("this", "it", "the card") instead of opening with its name.`
+}
 - Avoid the reviewer's template of a verdict with a condition, then a reason, then "I'd want…". Let the shape of what you say follow from how you talk.
 
 For this turn: ${turn.move}
 
 Length: ${turn.length}. Treat that as a limit, not a target; people in meetings get cut off. Plain speech and nothing else. The team sees your name and role beside everything you say, so your reply never states your own name, role, or job title, and never comments on the discussion's format or on these instructions.`;
 
-  const parts = [
-    tag("design_problem", problem),
-    tag("idea", idea.text),
-    tag("why_it_was_proposed", idea.rationale),
-  ];
+  // In problem mode the idea is left out altogether: with it in view, panellists review the idea.
+  const parts =
+    focusMode === "problem"
+      ? [tag("problem_statement_under_review", problem)]
+      : [tag("design_problem", problem), tag("idea", idea.text), tag("why_it_was_proposed", idea.rationale)];
   if (previousRounds.length > 0) {
     parts.push(tag("discussion_so_far", transcript(previousRounds, speaker.id)));
   }
+  const subject = focusMode === "problem" ? "the problem statement" : "the idea";
   parts.push(
     previousRounds.length === 0
-      ? "The discussion is opening. Give your view."
-      : "It is your turn to speak again."
+      ? `The discussion is opening. Give your view of ${subject}.`
+      : `It is your turn to speak again, still about ${subject}.`
   );
 
   return { model: FAST_MODEL, system, user: parts.join("\n\n"), effort: "low" };
@@ -517,7 +540,7 @@ export function summaryPrompt(
 ): Prompt {
   const shape =
     focusMode === "problem"
-      ? `The panel discussed the problem statement. Each point is an insight about the problem: a hidden assumption, a group it overlooks, or a different way to frame it.`
+      ? `The panel discussed the problem statement. Each point is an insight about the problem: a hidden assumption, a group it overlooks, or a different way to frame it. Leave out any remark that is really about a particular solution.`
       : `The panel discussed the idea. Each point says something the idea should change, keep, or resolve.`;
 
   const system = `You distil a panel discussion from a design workshop into points the team can act on. The team will tick the points they agree with, and only the ticked points are passed on to revise the ${focusMode === "problem" ? "problem statement" : "idea"}, so each point has to make sense on its own.
@@ -530,11 +553,13 @@ Write three to seven points, most important first. Each has a heading of two to 
     model: FAST_MODEL,
     system,
     user: [
-      tag("design_problem", problem),
-      tag("idea", idea.text),
+      focusMode === "problem" ? tag("problem_statement_under_review", problem) : tag("design_problem", problem),
+      focusMode === "problem" ? "" : tag("idea", idea.text),
       tag("discussion", transcript(rounds, "")),
       "Distil the discussion.",
-    ].join("\n\n"),
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
     effort: "low",
   };
 }
